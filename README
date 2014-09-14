@@ -1,0 +1,148 @@
+			Homework Assignment #2
+
+* INTRODUCTION:
+
+U2FS is a stackable fan-out file system, wherein every VFS-based object 
+has two links to other objects on the lower file system. These two links 
+can be of same file system or different. Symbolically it is represented 
+as X->X' where "X" is an object at the upper layer, and X' is an object 
+on the lower layer. But U2FS being fan-out stackable file system, has two 
+links for each VFS object X which points to two different objects below: 
+X -> (X1', X2'). 
+
+* DETAILS:
+
+U2FS have two branches, which are identified as the "left branch" (LB) 
+and the "right branch" (RB).  LB has higher priority than RB.  RB is 
+assumed to be readonly: that is, no file there is modified. Files are only
+modified in LB only. The purpose of U2FS is to take two separate directory 
+trees, and to combine their contents recursively such that it appears, 
+at the u2fs level, that the two directories (LB and RB) have been combined. 
+But files physically stay in the same underlying location as they were before.  
+
+U2FS supports following functionality:
+
+1. When you look up a file in u2fs, which exists in both the branches, left
+   branch takes priority and content of left branch is exposed. In case, it
+   exists in only on directory, then it is shown from its respective
+   directory. For directories if they exist in both the branches, their
+   content is merged recursively and displayed. Duplicates are eliminated.
+
+
+2. When you create a new file, it by defualt get create in LB. If you try to
+   create a file in directory which exists in RB, then its complete directory
+   structure is copied to LB and then the file is created in LB. This concept
+   of copying the entire directory dtructure is called copyup.
+
+3. When you modify an existing file in LB, it gets modified there.  But if a
+   user tries to modify a file that exists in RB only, then again the entire 
+   directory structure is copied to LB with the file being modified and then 
+   the file is modified in LB. Original file in RB remains untouched.
+
+4. When you delete a file (or directory) from LB it gets deleted normally.
+   But when you have to delete a file which exists only in RB then a mask
+   file is created in LB which tells U2FS that the original file is deleted
+   from RB. In case the directory structure doesn't exist in LB, the directory
+   structure is copied and then the mask file is created. In case a file
+   exists in both LB and RB then the file in LB is deleted and and mask file
+   for RB is created in LB. The mask file is called a whiteout and the name
+   of whiteout file starts with .wh.filename.
+
+5. If same files and/or directories exists in both LB and RB then duplicates
+   will not be displayed. File from LB will be displayed. Duplicate elimination    is handled at kernel level. 
+
+* U2FS routines:
+
+->lookup: This routine looks up a file in both the branches LB and RB. If a 
+          files exists in both, LB is given priority. If there is a whiteout
+          of a file of RB in LB then that file will be masked.
+
+->main: This routine mounts both the branches together at the mount point 
+        specified.
+
+->copyup: This funtion copyups any file which is modified in RB so that RB
+          remains untouched.
+
+->whiteout: This funciton creates a special mask file in LB whenever a file
+            is removed in RB.
+
+->mv/cp: This function moves/copies contents from/to directories. If source 
+         directory is RB and user tries to mv it, a whiteout is created and 
+         the file is copyuped. When user tries to cp/mv a file to RB, the
+         destinatino folder is copyuped and the mv/cp proceeds normally.
+
+->unlink: If a file is removed from LB, its unlink is normal. If file exists
+          in RB, it is not unlinked, rather a whiteout is craeted. If a files
+          exists in both LB and RB, file in LB is unlinked and a whiteout is 
+          created for the file in RB.
+
+->rmdir: If a directory is removed from LB, its unlink is normal. Ifdirectory
+         exists in RB, it is not unlinked, rather a whiteout is created. If 
+	 a directory exists in both LB and RB, file in LB is unlinked and a 
+	 whiteout is created for the file in RB.
+
+->symlink/hardlink: If the source of symlink/hardlink is from RB/LB and 
+         destination is LB, then the operation performs normally. If the
+    	 destination of symlink/hardlink is RB, then the directory structure
+  	 from RB is copyed to LB and then the link is made.
+
+->readlink/followlink: Attributed properly to read links to/from LB/RB.
+
+->create/mkdir: If destination where the file/directory is to be made is LB
+         the operation performs normally. If the destination is RB, the
+         directory structure is copyed in LB and then the file/directory is 
+         made.
+
+->readdir: This is modified to skip duplicates and whiteouts using filldir.
+         A string array is declared and names are stored each time a directory
+         is read from LB. The array is then compared with the names encountered
+         while reading RB. If duplicate occurs, it is removed.
+
+->setattr: If any file attribute is modified for LB, it performs normally, For
+         any modification in RB, the file is copyuped to LB and then the 
+         attributes are modified.
+
+* How to mount U2FS:
+
+U2FS is a loadable kernel module. Following steps should be followed to mount
+it:
+# make
+# insmod u2fs.ko
+# mount -t u2fs -o ldir=/left/dir,rdir=/right/dir null /mnt/u2fs
+
+After that, you will be able to "cd" to /mnt/u2fs and issue normal file
+system commands.
+
+For removing U2FS:
+# umount /mnt/u2fs
+# rmmod u2fs.ko
+
+* EXTRA CREDIT:
+
+Extra credit is not in #if #endif and compiles by default. The duplicates are
+successfully handled at kernel level. The code of /bin/ls is unaffected.
+
+* FILES FOR SUBMISSION:
+
+1) kernel.config
+2) copyup.c
+3) dentry.c
+4) file.c
+5) inode.c
+6) lookup.c
+7) main.c
+8) mmap.c
+9) sioq.c
+10) sioq.h
+11) super.c
+12) u2fs.h
+13) whiteout.c
+14) README
+15) Makefile
+
+Resources:
+1) Wrapfs code of File-System Lab
+2) Unionfs code of File-System Lab
+
+The code of U2FS is designed like wrapfs and unionfs with major section of
+code borrowed from them with proper attribution.

@@ -1,0 +1,1 @@
+cmd_/usr/src/hw2-abggupta/hw2/u2fs/u2fs.ko := ld -r -m elf_i386 -T /usr/src/hw1-abggupta/scripts/module-common.lds   -o /usr/src/hw2-abggupta/hw2/u2fs/u2fs.ko /usr/src/hw2-abggupta/hw2/u2fs/u2fs.o /usr/src/hw2-abggupta/hw2/u2fs/u2fs.mod.o
